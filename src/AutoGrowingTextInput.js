@@ -3,7 +3,10 @@ import {View, TextInput, LayoutAnimation, Platform} from 'react-native';
 import PropTypes from 'prop-types';
 
 const ANDROID_PLATFORM = (Platform.OS === 'android');
+const IOS_PLATFORM = (Platform.OS === 'ios');
 const DEFAULT_ANIM_DURATION = 100;
+
+const AutoGrowTextInputManager = NativeModules.AutoGrowTextInputManager;
 
 export default class AutoGrowingTextInput extends Component {
   constructor(props) {
@@ -18,6 +21,37 @@ export default class AutoGrowingTextInput extends Component {
       height: this._getValidHeight(props.initialHeight),
       androidFirstContentSizeChange: true
     };
+  }
+
+  componentDidMount() {
+    if(this.shouldApplyNativeIOSSettings()) {
+      const reactTag = this.textInputReactTag();
+      if (reactTag) {
+        AutoGrowTextInputManager.applySettingsForInput(reactTag, {
+          disableScrollAndBounce: this.props.disableScrollAndBounceIOS,
+          enableScrollToCaret: this.props.enableScrollToCaretIOS
+        });
+      }
+    }
+  }
+
+  componentWillUnmount() {
+    if(this.shouldApplyNativeIOSSettings()) {
+      const reactTag = this.textInputReactTag();
+      if (reactTag) {
+        AutoGrowTextInputManager.performCleanupForInput(reactTag);
+      }
+    }
+  }
+
+  shouldApplyNativeIOSSettings() {
+    return IOS_PLATFORM && AutoGrowTextInputManager && (this.props.disableScrollAndBounceIOS || this.props.enableScrollToCaretIOS);
+  }
+
+  textInputReactTag() {
+    if (this._textInput) {
+      return ReactNative.findNodeHandle(this._textInput);
+    }
   }
 
   _renderTextInputAndroid() {
@@ -136,8 +170,16 @@ export default class AutoGrowingTextInput extends Component {
     return this._textInput.focus();
   }
 
+  blur() {
+    this._textInput.blur();
+  }
+
   isFocused() {
     return this._textInput.isFocused();
+  }
+
+  getRef() {
+    return this._textInput;
   }
 }
 
@@ -148,7 +190,9 @@ AutoGrowingTextInput.propTypes = {
   maxHeight: PropTypes.number,
   onHeightChanged: PropTypes.func,
   onChange: PropTypes.func,
-  animation: PropTypes.object
+  animation: PropTypes.object,
+  disableScrollAndBounceIOS: PropTypes.bool,
+  enableScrollToCaretIOS: PropTypes.bool,
 };
 AutoGrowingTextInput.defaultProps = {
   autoGrowing: true,
